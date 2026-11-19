@@ -64,6 +64,12 @@ input{font:inherit}
 .row2{display:flex;gap:10px}.row2>*{flex:1}
 .lbl{font-size:13px;color:var(--mut);margin:0 0 8px;font-weight:600}
 .hr{border-top:1px solid var(--bd);margin:24px 0}
+.warnicon{width:72px;height:72px;margin:6px auto 0;border-radius:50%;background:#fdecea;color:var(--red);display:flex;align-items:center;justify-content:center}
+.warnlead{font-size:16px;line-height:1.7;text-align:center;margin:14px 0 14px}
+.warnlist{margin:0 0 18px;padding:14px 16px 14px 34px;background:#fff6e5;border:1.5px solid #f1cf8a;border-radius:12px;font-size:14.5px;line-height:1.6}
+.warnlist li{margin:3px 0}
+.warnck{display:flex;align-items:center;justify-content:center;gap:10px;font-size:17px;font-weight:800;margin:0 0 12px;padding:12px;border:2px solid #c9d1da;border-radius:12px}
+.warnck input{width:22px;height:22px}
 .alert{display:flex;align-items:center;gap:10px;background:#fdecea;border:2px solid #e8a39b;color:var(--red);border-radius:12px;padding:12px 14px;font-size:18px;font-weight:800;line-height:1.35;margin-top:6px}
 .alert svg{flex-shrink:0}
 .lnk{color:var(--pri);font-size:14px;font-weight:600;text-decoration:underline;text-underline-offset:3px;padding:8px 4px;min-height:36px}
@@ -254,6 +260,22 @@ table.rt th.mine,table.rt td.mine{background:#fff7e0}
   <div class="foot">運営：日本大学医学部5年卒試委員会</div>
 </section>
 
+<!-- ①' QRの前の注意 -->
+<section id="scr-warn" class="scr" hidden style="padding-top:22px">
+  <div class="warnicon"><svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"></path><line x1="12" y1="10" x2="12" y2="14"></line><line x1="12" y1="17.5" x2="12" y2="17.5"></line></svg></div>
+  <h1 class="ttl c" style="margin-top:10px">次の画面を<br>必ず記録してください</h1>
+  <p class="warnlead">次のページの<b>QRコード</b>または<br><b>ユーザー識別コード</b>は、<br><b>再アクセス</b>と<b>入力内容の保存</b>に必要です。</p>
+  <ul class="warnlist">
+    <li>なくすと、続きの入力も、点数の確認もできません</li>
+    <li>名前などを登録しないので、<b>運営もあなたのコードを調べられません</b></li>
+    <li>次の画面を<b>スクショ</b>などで必ず記録してください</li>
+  </ul>
+  <label class="warnck"><input type="checkbox" id="warn-ok"> 確認しました</label>
+  <button class="btn pri" id="btn-warn-next" disabled>QRコードを表示する →</button>
+  <div class="c" style="margin-top:12px"><button class="lnk" id="btn-warn-back">← 学年を選び直す</button></div>
+  <div class="foot">運営：日本大学医学部5年卒試委員会</div>
+</section>
+
 <!-- ② リンク保存（開始時・終了時の共通） -->
 <section id="scr-save" class="scr" hidden style="padding-top:18px">
   <div id="save-done" class="c" hidden><span class="donebadge">✓ 入力を終了しました</span></div>
@@ -361,7 +383,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(
 function fmtCode(c){ return c ? c.slice(0,4) + '-' + c.slice(4) : ''; }
 function myLink(){ return APP_URL + '?k=' + S.code + '&openExternalBrowser=1'; }
 function show(id){
-  ['scr-top','scr-save','scr-line','scr-input','scr-result'].forEach(function(x){ $(x).hidden = (x !== id); });
+  ['scr-top','scr-warn','scr-save','scr-line','scr-input','scr-result'].forEach(function(x){ $(x).hidden = (x !== id); });
   window.scrollTo(0,0);
 }
 var toastT;
@@ -466,7 +488,7 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-grade]'), function
     clearLocal();
     S.code = code; S.row = 0; S.grade = grade; S.status = 'draft';
     S.answers = emptyAnswers(); S.dirty = {}; S.linkSaved = false;
-    saveLocal(); showSave('start');
+    saveLocal(); showWarn();
     call('apiStart', [grade, code], function(st){
       if (st.code !== S.code) return;
       S.row = st.row; S.published = st.published; S.openAt = st.openAt; S.offset = st.now - Date.now(); S.counts = st.counts; saveLocal(); renderCounts();
@@ -476,6 +498,10 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-grade]'), function
     });
   };
 });
+function showWarn(){ $('warn-ok').checked = false; $('btn-warn-next').disabled = true; show('scr-warn'); }
+$('warn-ok').onchange = function(){ $('btn-warn-next').disabled = !this.checked; };
+$('btn-warn-next').onclick = function(){ if ($('warn-ok').checked) showSave('start'); };
+$('btn-warn-back').onclick = function(){ clearLocal(); S.code = ''; show('scr-top'); };
 $('btn-havecode').onclick = function(){ $('codebox').hidden = !$('codebox').hidden; if (!$('codebox').hidden) $('codeinp').focus(); };
 $('btn-open').onclick = function(){
   var c = ($('codeinp').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
