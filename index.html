@@ -8,7 +8,7 @@
 /* Apps Script の google.script.run と同じ使い方で、Googleのログイン情報を送らずにサーバーを呼ぶ */
 (function(){
   var API = 'https://script.google.com/macros/s/AKfycbzzpBwhhcDJEOE5SQlvWHwvWYNgrU4xGrNJO8j5JXHPBsKbpBHimZibp3KoFDRKnU-t/exec';
-  var NAMES = ['apiStart','apiPing','apiLoad','apiSave','apiFinalize','apiResult','apiQText'];
+  var NAMES = ['apiStart','apiPing','apiLoad','apiSave','apiFinalize','apiResult','apiQText','apiLog'];
   function runner(ok, ng){
     var r = {
       withSuccessHandler: function(h){ return runner(h, ng); },
@@ -19,7 +19,7 @@
         var args = Array.prototype.slice.call(arguments);
         var ctl = window.AbortController ? new AbortController() : null;
         var timer = setTimeout(function(){ if (ctl) ctl.abort(); }, 45000);
-        fetch(API, { method: 'POST', body: JSON.stringify({ fn: name, args: args }), credentials: 'omit', redirect: 'follow', cache: 'no-store', signal: ctl ? ctl.signal : undefined })
+        fetch(API, { method: 'POST', body: JSON.stringify({ fn: name, args: args }), credentials: 'omit', redirect: 'follow', cache: 'no-store', keepalive: name === 'apiLog', signal: ctl ? ctl.signal : undefined })
           .then(function(res){ return res.json(); })
           .then(function(j){ clearTimeout(timer); if (j && j.error) { if (ng) ng(new Error(j.error)); } else if (ok) ok(j ? j.result : null); })
           .catch(function(){ clearTimeout(timer); if (ng) ng(new Error('通信できませんでした。電波のよい場所でもう一度お試しください')); });
@@ -382,7 +382,74 @@ var $ = function(id){ return document.getElementById(id); };
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function fmtCode(c){ return c ? c.slice(0,4) + '-' + c.slice(4) : ''; }
 function myLink(){ return APP_URL + '?k=' + S.code + '&openExternalBrowser=1'; }
+// ---------- アクセス解析（匿名の回数だけ。コードや解答は送らない） ----------
+var TQ = {}, TQ_KEY = 'tk_trk_q', DEV_KEY = 'tk_dev', curScr = '', scrAt = Date.now();
+try { TQ = JSON.parse(localStorage.getItem(TQ_KEY) || '{}') || {}; } catch(e){ TQ = {}; }
+function devId(){
+  var d = ''; try { d = localStorage.getItem(DEV_KEY) || ''; } catch(e){}
+  if (!/^[A-Za-z0-9]{12}$/.test(d)) { d = genCodeLocal() + genCodeLocal().slice(0, 4); try { localStorage.setItem(DEV_KEY, d); } catch(e){} }
+  return d;
+}
+function trk(k){
+  if (!/^[a-z_]{1,20}(:[A-Za-z0-9_\-+<>.]{1,24})?$/.test(k)) return;
+  TQ[k] = (TQ[k] || 0) + 1;
+  try { localStorage.setItem(TQ_KEY, JSON.stringify(TQ)); } catch(e){}
+}
+function envInfo(){
+  var ua = navigator.userAgent || '';
+  var o = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'other';
+  var b = /Line\//.test(ua) ? 'LINE' : /Instagram/.test(ua) ? 'Instagram' : /FBAN|FBAV/.test(ua) ? 'Facebook' : /CriOS|Chrome/.test(ua) && !/Edg/.test(ua) ? 'Chrome' : /Edg/.test(ua) ? 'Edge' : /FxiOS|Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'other';
+  return { o: o, b: b, h: /github\.io$/.test(location.hostname) ? 'pages' : 'gas' };
+}
+var flushing = false;
+function flushTrk(){
+  var keys = Object.keys(TQ); if (!keys.length || flushing) return;
+  var sent = TQ, ev = envInfo(); TQ = {}; flushing = true;
+  try { localStorage.setItem(TQ_KEY, '{}'); } catch(e){}
+  var back = function(){ flushing = false; Object.keys(sent).forEach(function(k){ TQ[k] = (TQ[k] || 0) + sent[k]; }); try { localStorage.setItem(TQ_KEY, JSON.stringify(TQ)); } catch(e){} };
+  try {
+    google.script.run.withSuccessHandler(function(){ flushing = false; }).withFailureHandler(back)
+      .apiLog({ d: devId(), g: S.grade || '', h: ev.h, o: ev.o, b: ev.b, c: sent });
+  } catch(e){ back(); }
+}
+function dwellBucket(ms){ var s2 = ms / 1000; return s2 < 10 ? '<10s' : s2 < 60 ? '10-60s' : s2 < 300 ? '1-5m' : s2 < 1200 ? '5-20m' : '20m+'; }
+function noteDwell(){ if (curScr) trk('dwell:' + curScr + '_' + dwellBucket(Date.now() - scrAt)); scrAt = Date.now(); }
+document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'hidden') { noteDwell(); flushTrk(); } else scrAt = Date.now(); });
+window.addEventListener('pagehide', function(){ noteDwell(); flushTrk(); });
+setInterval(flushTrk, 120000);
+window.addEventListener('error', function(){ trk('jserr'); });
+document.addEventListener('click', function(e){
+  var t = e.target.closest ? e.target.closest('button,a,input') : null; if (!t) return;
+  var id = t.id || '', a = function(n){ return t.getAttribute(n); };
+  var qc = t.closest('.qcard'), qid = qc ? qc.id.replace('qc-', '') : '';
+  if (a('data-grade')) trk('grade:' + a('data-grade'));
+  else if (id === 'btn-warn-next') trk(t.disabled ? 'warn:locked' : 'warn:ok');
+  else if (id === 'btn-warn-back') trk('warn:back');
+  else if (id === 'warn-ok') trk('warn:check');
+  else if (id === 'btn-begin') trk('begin');
+  else if (id === 'btn-havecode') trk('havecode');
+  else if (id === 'btn-open') trk('codeopen:try');
+  else if (id === 'btn-copyurl') trk('copyurl');
+  else if (t.closest('#btn-codechip')) trk('codechip');
+  else if (id === 'btn-toresult') trk('toresult');
+  else if (a('data-b')) trk('block:' + a('data-b'));
+  else if (a('data-ch')) trk('ans');
+  else if (id === 'k-multi') trk('multi');
+  else if (id === 'k-clear') trk('clear');
+  else if (/^k-/.test(id)) trk('keynav:' + id.slice(2));
+  else if (/^seg-/.test(id)) trk('tab:' + id.slice(4));
+  else if (a('data-g')) trk('sgrp:' + a('data-g'));
+  else if (a('data-bk')) trk('sblk:' + a('data-bk'));
+  else if (id === 'f-wrong') trk('wrong');
+  else if (a('data-rk')) trk('rk:' + a('data-rk'));
+  else if (a('data-rb')) trk('rkblk:' + a('data-rb'));
+  else if (a('data-rg')) trk('rkgrp:' + a('data-rg'));
+  else if (t.classList.contains('qbbtn')) { trk('qb:' + qid); flushTrk(); }
+  else if (a('data-more')) trk('more:' + qid);
+}, true);
+var SCR_NAME = { 'scr-top': 'top', 'scr-warn': 'warn', 'scr-save': 'save', 'scr-line': 'line', 'scr-input': 'input', 'scr-result': 'result' };
 function show(id){
+  if (SCR_NAME[id] !== curScr) { noteDwell(); curScr = SCR_NAME[id] || ''; trk('view:' + curScr); }
   ['scr-top','scr-warn','scr-save','scr-line','scr-input','scr-result'].forEach(function(x){ $(x).hidden = (x !== id); });
   window.scrollTo(0,0);
 }
@@ -390,8 +457,11 @@ var toastT;
 function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove('on'); }, 2600); }
 function loading(on){ $('loading').hidden = !on; }
 function errMsg(e){ var m = (e && e.message) ? e.message : String(e || ''); m = m.replace(/^Exception:\s*/, '').replace(/^Error:\s*/, ''); return m || '通信に失敗しました'; }
+var TRK_FN = { apiSave: 'save', apiFinalize: 'finalize', apiResult: 'result', apiQText: 'qtext', apiLoad: 'load', apiStart: 'start' };
 function call(fn, args, ok, ng){
-  var r = google.script.run.withSuccessHandler(ok).withFailureHandler(function(e){ (ng || function(e){ toast(errMsg(e)); })(e); });
+  var tk = TRK_FN[fn];
+  var r = google.script.run.withSuccessHandler(function(x){ if (tk) trk(tk + ':ok'); if (ok) ok(x); })
+    .withFailureHandler(function(e){ if (tk) trk(tk + ':ng'); (ng || function(e){ toast(errMsg(e)); })(e); });
   r[fn].apply(r, args || []);
 }
 function buzz(){ try { if (navigator.vibrate) navigator.vibrate(8); } catch(e){} }
@@ -427,6 +497,8 @@ function applyServer(st){
 // ---------- 起動 ----------
 function isLineApp(){ return /\bLine\//i.test(navigator.userAgent || ''); }
 function boot(){
+  trk('session'); trk('open:' + (INIT_CODE ? 'link' : 'direct'));
+  setTimeout(flushTrk, 15000);
   var local = loadLocal();
   var code = INIT_CODE || (local && local.code) || '';
   if (isLineApp()) {
