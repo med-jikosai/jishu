@@ -263,12 +263,12 @@ table.rt th.mine,table.rt td.mine{background:#fff7e0}
 <!-- ①' QRの前の注意 -->
 <section id="scr-warn" class="scr" hidden style="padding-top:22px">
   <div class="warnicon"><svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"></path><line x1="12" y1="10" x2="12" y2="14"></line><line x1="12" y1="17.5" x2="12" y2="17.5"></line></svg></div>
-  <h1 class="ttl c" style="margin-top:10px">次の画面を<br>必ず記録してください</h1>
+  <h1 class="ttl c" style="margin-top:10px">次の画面を<br>必ずスクショ等で<br>記録してください</h1>
   <p class="warnlead">次のページの<b>QRコード</b>または<br><b>ユーザー識別コード</b>は、<br><b>再アクセス</b>と<b>入力内容の保存</b>に必要です。</p>
   <ul class="warnlist">
     <li>なくすと、続きの入力も、点数の確認もできません</li>
     <li>名前などを登録しないので、<b>運営もあなたのコードを調べられません</b></li>
-    <li>次の画面を<b>スクショ</b>などで必ず記録してください</li>
+    <li><b>この先は学年を変更できません</b><br>（選んだ学年：<b id="warn-grade"></b>）</li>
   </ul>
   <label class="warnck"><input type="checkbox" id="warn-ok"> 確認しました</label>
   <button class="btn pri" id="btn-warn-next" disabled>QRコードを表示する →</button>
@@ -498,7 +498,7 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-grade]'), function
     });
   };
 });
-function showWarn(){ $('warn-ok').checked = false; $('btn-warn-next').disabled = true; show('scr-warn'); }
+function showWarn(){ $('warn-grade').textContent = S.grade + '年'; $('warn-ok').checked = false; $('btn-warn-next').disabled = true; show('scr-warn'); }
 $('warn-ok').onchange = function(){ $('btn-warn-next').disabled = !this.checked; };
 $('btn-warn-next').onclick = function(){ if ($('warn-ok').checked) showSave('start'); };
 $('btn-warn-back').onclick = function(){ clearLocal(); S.code = ''; show('scr-top'); };
