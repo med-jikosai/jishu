@@ -8,7 +8,7 @@
 /* Apps Script の google.script.run と同じ使い方で、Googleのログイン情報を送らずにサーバーを呼ぶ */
 (function(){
   var API = 'https://script.google.com/macros/s/AKfycbzzpBwhhcDJEOE5SQlvWHwvWYNgrU4xGrNJO8j5JXHPBsKbpBHimZibp3KoFDRKnU-t/exec';
-  var NAMES = ['apiStart','apiPing','apiLoad','apiSave','apiFinalize','apiResult','apiQText','apiLog'];
+  var NAMES = ['apiStart','apiPing','apiLoad','apiSave','apiFinalize','apiResult','apiQText','apiRequest'];
   function runner(ok, ng){
     var r = {
       withSuccessHandler: function(h){ return runner(h, ng); },
@@ -19,7 +19,7 @@
         var args = Array.prototype.slice.call(arguments);
         var ctl = window.AbortController ? new AbortController() : null;
         var timer = setTimeout(function(){ if (ctl) ctl.abort(); }, 45000);
-        fetch(API, { method: 'POST', body: JSON.stringify({ fn: name, args: args }), credentials: 'omit', redirect: 'follow', cache: 'no-store', keepalive: name === 'apiLog', signal: ctl ? ctl.signal : undefined })
+        fetch(API, { method: 'POST', body: JSON.stringify({ fn: name, args: args }), credentials: 'omit', redirect: 'follow', cache: 'no-store', signal: ctl ? ctl.signal : undefined })
           .then(function(res){ return res.json(); })
           .then(function(j){ clearTimeout(timer); if (j && j.error) { if (ng) ng(new Error(j.error)); } else if (ok) ok(j ? j.result : null); })
           .catch(function(){ clearTimeout(timer); if (ng) ng(new Error('通信できませんでした。電波のよい場所でもう一度お試しください')); });
@@ -133,6 +133,9 @@ textarea.bulk{width:100%;height:180px;border:1.5px solid #c9d1da;border-radius:1
 #scr-input{height:100vh;height:100dvh;display:flex;flex-direction:column;max-width:520px;margin:0 auto}
 .topbar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;font-size:13px;border-bottom:1px solid var(--bd);background:#fafbfc}
 #syncst{font-weight:700}
+.syncgrp{display:flex;align-items:center;gap:8px}
+.savebtn{border:1.5px solid #c8d5e3;background:#fff;color:var(--pri);border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:800;min-height:30px}
+.savebtn:active{background:var(--pri-l)}
 #syncst.ok{color:var(--ok)}#syncst.ing{color:var(--mut)}#syncst.ng{color:var(--me)}
 .codechip{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;color:var(--ink);padding:2px 6px;border-radius:6px;border:0;background:none}
 .codechip .cl{font-size:10px;color:var(--mut);font-weight:600}
@@ -230,6 +233,30 @@ table.rt th.mine,table.rt td.mine{background:#fff7e0}
 .ctx.ok{color:var(--ok);font-weight:700}.ctx.me:not(.ok){color:var(--me);font-weight:700}
 .photo{display:inline-block;font-size:11.5px;font-weight:700;color:#6b4e00;background:#fff3cf;border-radius:4px;padding:0 6px;margin-left:4px;white-space:nowrap}
 .qload{font-size:12.5px;color:var(--mut);margin:0 0 6px}
+.reqbtn{display:block;margin:10px 0 0;padding:6px 0;border:0;background:none;color:var(--mut);font-size:12.5px;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.reqdone{margin-top:10px;font-size:12.5px;color:var(--ok);font-weight:700}
+.reqform{margin-top:12px;padding:12px;border:1.5px solid #c8d5e3;border-radius:12px;background:#f8fafc}
+.reqttl{font-weight:800;font-size:15px;margin-bottom:6px}
+.reqnote{font-size:12.5px;line-height:1.55;background:#fff6e5;border:1px solid #f1cf8a;border-radius:8px;padding:8px 10px;margin-bottom:6px}
+.reql{display:block;font-size:13px;font-weight:800;margin:10px 0 4px}
+.reql small{font-weight:600;color:var(--mut)}
+.reql .req{font-size:10.5px;background:#fdecea;color:var(--red);border-radius:4px;padding:1px 5px;margin-left:4px}
+.reql .opt{font-size:10.5px;background:#eef1f4;color:var(--mut);border-radius:4px;padding:1px 5px;margin-left:4px}
+.reqtypes{display:flex;flex-wrap:wrap;gap:6px}
+.reqt,.reqc{border:1.5px solid #c8d5e3;background:#fff;color:var(--ink);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:700;min-height:34px}
+.reqc{width:44px;padding:6px 0;font-size:15px}
+.reqt.on,.reqc.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.reqch{display:flex;gap:6px}
+textarea.reqin,input.reqin{width:100%;border:1.5px solid #c9d1da;border-radius:8px;padding:8px 10px;font-size:15px;font-family:inherit;line-height:1.5;background:#fff}
+.reqok{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;margin:12px 0 4px}
+.reqok input{width:20px;height:20px}
+.reqbtns{display:flex;gap:8px;margin-top:10px;align-items:center}
+.reqbtns .reqsend{flex:1;min-height:44px}
+.csvbox{margin-top:22px;padding:14px;border:1.5px solid var(--bd);border-radius:12px;background:#fafbfc}
+.csvlbl{font-size:13px;font-weight:800;margin:8px 0 4px}
+.csvgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px}
+.csvck{display:flex;align-items:center;gap:7px;font-size:14px;min-height:34px}
+.csvck input{width:19px;height:19px}
 .badge.nokey{background:#fff3cf;color:#6b4e00}
 .badge{font-size:11px;border-radius:4px;padding:1px 6px;background:#eee;color:#555;font-weight:700}
 </style>
@@ -310,7 +337,7 @@ table.rt th.mine,table.rt td.mine{background:#fff7e0}
 <!-- ⑤ 回答入力 -->
 <section id="scr-input" hidden>
   <div class="topbar">
-    <span id="syncst" class="ok">✓ 保存済み</span>
+    <span class="syncgrp"><span id="syncst" class="ok">✓ 保存済み</span><button class="savebtn" id="btn-savenow">今すぐ保存</button></span>
     <button class="codechip" id="btn-codechip" aria-label="ユーザー識別コード（タップでリンクをコピー）"><span class="cl">ユーザー識別コード</span><span id="codechip-v"></span></button>
   </div>
   <div class="counts" id="counts" hidden></div>
@@ -382,74 +409,7 @@ var $ = function(id){ return document.getElementById(id); };
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function fmtCode(c){ return c ? c.slice(0,4) + '-' + c.slice(4) : ''; }
 function myLink(){ return APP_URL + '?k=' + S.code + '&openExternalBrowser=1'; }
-// ---------- アクセス解析（匿名の回数だけ。コードや解答は送らない） ----------
-var TQ = {}, TQ_KEY = 'tk_trk_q', DEV_KEY = 'tk_dev', curScr = '', scrAt = Date.now();
-try { TQ = JSON.parse(localStorage.getItem(TQ_KEY) || '{}') || {}; } catch(e){ TQ = {}; }
-function devId(){
-  var d = ''; try { d = localStorage.getItem(DEV_KEY) || ''; } catch(e){}
-  if (!/^[A-Za-z0-9]{12}$/.test(d)) { d = genCodeLocal() + genCodeLocal().slice(0, 4); try { localStorage.setItem(DEV_KEY, d); } catch(e){} }
-  return d;
-}
-function trk(k){
-  if (!/^[a-z_]{1,20}(:[A-Za-z0-9_\-+<>.]{1,24})?$/.test(k)) return;
-  TQ[k] = (TQ[k] || 0) + 1;
-  try { localStorage.setItem(TQ_KEY, JSON.stringify(TQ)); } catch(e){}
-}
-function envInfo(){
-  var ua = navigator.userAgent || '';
-  var o = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'Mac' : 'other';
-  var b = /Line\//.test(ua) ? 'LINE' : /Instagram/.test(ua) ? 'Instagram' : /FBAN|FBAV/.test(ua) ? 'Facebook' : /CriOS|Chrome/.test(ua) && !/Edg/.test(ua) ? 'Chrome' : /Edg/.test(ua) ? 'Edge' : /FxiOS|Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'other';
-  return { o: o, b: b, h: /github\.io$/.test(location.hostname) ? 'pages' : 'gas' };
-}
-var flushing = false;
-function flushTrk(){
-  var keys = Object.keys(TQ); if (!keys.length || flushing) return;
-  var sent = TQ, ev = envInfo(); TQ = {}; flushing = true;
-  try { localStorage.setItem(TQ_KEY, '{}'); } catch(e){}
-  var back = function(){ flushing = false; Object.keys(sent).forEach(function(k){ TQ[k] = (TQ[k] || 0) + sent[k]; }); try { localStorage.setItem(TQ_KEY, JSON.stringify(TQ)); } catch(e){} };
-  try {
-    google.script.run.withSuccessHandler(function(){ flushing = false; }).withFailureHandler(back)
-      .apiLog({ d: devId(), g: S.grade || '', h: ev.h, o: ev.o, b: ev.b, c: sent });
-  } catch(e){ back(); }
-}
-function dwellBucket(ms){ var s2 = ms / 1000; return s2 < 10 ? '<10s' : s2 < 60 ? '10-60s' : s2 < 300 ? '1-5m' : s2 < 1200 ? '5-20m' : '20m+'; }
-function noteDwell(){ if (curScr) trk('dwell:' + curScr + '_' + dwellBucket(Date.now() - scrAt)); scrAt = Date.now(); }
-document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'hidden') { noteDwell(); flushTrk(); } else scrAt = Date.now(); });
-window.addEventListener('pagehide', function(){ noteDwell(); flushTrk(); });
-setInterval(flushTrk, 120000);
-window.addEventListener('error', function(){ trk('jserr'); });
-document.addEventListener('click', function(e){
-  var t = e.target.closest ? e.target.closest('button,a,input') : null; if (!t) return;
-  var id = t.id || '', a = function(n){ return t.getAttribute(n); };
-  var qc = t.closest('.qcard'), qid = qc ? qc.id.replace('qc-', '') : '';
-  if (a('data-grade')) trk('grade:' + a('data-grade'));
-  else if (id === 'btn-warn-next') trk(t.disabled ? 'warn:locked' : 'warn:ok');
-  else if (id === 'btn-warn-back') trk('warn:back');
-  else if (id === 'warn-ok') trk('warn:check');
-  else if (id === 'btn-begin') trk('begin');
-  else if (id === 'btn-havecode') trk('havecode');
-  else if (id === 'btn-open') trk('codeopen:try');
-  else if (id === 'btn-copyurl') trk('copyurl');
-  else if (t.closest('#btn-codechip')) trk('codechip');
-  else if (id === 'btn-toresult') trk('toresult');
-  else if (a('data-b')) trk('block:' + a('data-b'));
-  else if (a('data-ch')) trk('ans');
-  else if (id === 'k-multi') trk('multi');
-  else if (id === 'k-clear') trk('clear');
-  else if (/^k-/.test(id)) trk('keynav:' + id.slice(2));
-  else if (/^seg-/.test(id)) trk('tab:' + id.slice(4));
-  else if (a('data-g')) trk('sgrp:' + a('data-g'));
-  else if (a('data-bk')) trk('sblk:' + a('data-bk'));
-  else if (id === 'f-wrong') trk('wrong');
-  else if (a('data-rk')) trk('rk:' + a('data-rk'));
-  else if (a('data-rb')) trk('rkblk:' + a('data-rb'));
-  else if (a('data-rg')) trk('rkgrp:' + a('data-rg'));
-  else if (t.classList.contains('qbbtn')) { trk('qb:' + qid); flushTrk(); }
-  else if (a('data-more')) trk('more:' + qid);
-}, true);
-var SCR_NAME = { 'scr-top': 'top', 'scr-warn': 'warn', 'scr-save': 'save', 'scr-line': 'line', 'scr-input': 'input', 'scr-result': 'result' };
 function show(id){
-  if (SCR_NAME[id] !== curScr) { noteDwell(); curScr = SCR_NAME[id] || ''; trk('view:' + curScr); }
   ['scr-top','scr-warn','scr-save','scr-line','scr-input','scr-result'].forEach(function(x){ $(x).hidden = (x !== id); });
   window.scrollTo(0,0);
 }
@@ -457,11 +417,8 @@ var toastT;
 function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove('on'); }, 2600); }
 function loading(on){ $('loading').hidden = !on; }
 function errMsg(e){ var m = (e && e.message) ? e.message : String(e || ''); m = m.replace(/^Exception:\s*/, '').replace(/^Error:\s*/, ''); return m || '通信に失敗しました'; }
-var TRK_FN = { apiSave: 'save', apiFinalize: 'finalize', apiResult: 'result', apiQText: 'qtext', apiLoad: 'load', apiStart: 'start' };
 function call(fn, args, ok, ng){
-  var tk = TRK_FN[fn];
-  var r = google.script.run.withSuccessHandler(function(x){ if (tk) trk(tk + ':ok'); if (ok) ok(x); })
-    .withFailureHandler(function(e){ if (tk) trk(tk + ':ng'); (ng || function(e){ toast(errMsg(e)); })(e); });
+  var r = google.script.run.withSuccessHandler(ok).withFailureHandler(function(e){ (ng || function(e){ toast(errMsg(e)); })(e); });
   r[fn].apply(r, args || []);
 }
 function buzz(){ try { if (navigator.vibrate) navigator.vibrate(8); } catch(e){} }
@@ -497,8 +454,6 @@ function applyServer(st){
 // ---------- 起動 ----------
 function isLineApp(){ return /\bLine\//i.test(navigator.userAgent || ''); }
 function boot(){
-  trk('session'); trk('open:' + (INIT_CODE ? 'link' : 'direct'));
-  setTimeout(flushTrk, 15000);
   var local = loadLocal();
   var code = INIT_CODE || (local && local.code) || '';
   if (isLineApp()) {
@@ -747,8 +702,8 @@ function noteChange(){
   setSync('ing');
   changes++;
   clearTimeout(idleT);
-  if (changes >= 20) syncNow();
-  else idleT = setTimeout(syncNow, 30000);
+  if (changes >= 10) syncNow();
+  else idleT = setTimeout(syncNow, 15000);
 }
 function syncNow(){
   clearTimeout(idleT);
@@ -766,15 +721,17 @@ function syncNow(){
     fails = 0;
     ids.forEach(function(id){ if (S.answers[id].join(',') === sent[id]) delete S.dirty[id]; });
     saveLocal();
-    // 送っている間に変わった分は、すぐには送らず次のタイミング（20回の変更・30秒）でまとめて送る
+    // 送っている間に変わった分は、すぐには送らず次のタイミング（10回の変更・15秒）でまとめて送る
     if (again) { again = false; syncNow(); }
-    else if (Object.keys(S.dirty).length) { setSync('ing'); clearTimeout(idleT); idleT = setTimeout(syncNow, 30000); }
-    else setSync('ok');
+    else if (Object.keys(S.dirty).length) { setSync('ing'); clearTimeout(idleT); idleT = setTimeout(syncNow, 15000); }
+    else { setSync('ok'); if (manualSave) { manualSave = false; toast('保存しました'); } }
   }, function(e){
     inflight = false; again = false;
     setSync('ng');
     var m = errMsg(e);
     if (/終了しています|受付期間外/.test(m)) toast(m);
+    else if (manualSave) toast('保存できませんでした。電波のよい場所で自動で再送します');
+    manualSave = false;
     // 混んでいるときに全員が同時に再送しないよう、待ち時間を少しずつ伸ばしてばらつかせる
     fails++;
     var wait = Math.min(120000, 8000 * Math.pow(2, Math.min(fails - 1, 4))) * (0.6 + Math.random() * 0.8);
@@ -784,6 +741,13 @@ function syncNow(){
 document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'hidden') syncNow(); });
 window.addEventListener('pagehide', syncNow);
 $('btn-codechip').onclick = function(){ copyText(myLink(), 'リンクをコピーしました'); };
+var manualSave = false;
+$('btn-savenow').onclick = function(){
+  if (S.status === 'final') { toast('入力は終了しています'); return; }
+  if (!Object.keys(S.dirty).length && !inflight) { setSync('ok'); toast('すでに保存されています'); return; }
+  manualSave = true;
+  if (inflight) again = true; else syncNow();
+};
 
 // ---------- 終了 ----------
 function openEnd(){
@@ -869,6 +833,76 @@ $('seg-score').onclick = function(){ setSeg('score'); };
 $('seg-stats').onclick = function(){ setSeg('stats'); };
 $('seg-rank').onclick = function(){ setSeg('rank'); };
 function pct(a, b){ return b ? (Math.round(a / b * 1000) / 10).toFixed(1) : '—'; }
+// ---------- 自分の結果をCSVで保存（統計は含めない） ----------
+var CSV_ROWS = [['wrong','間違えた問題',1],['blank','空欄の問題',1],['right','正解した問題',0],['none','採点対象外の問題',0]];
+var CSV_COLS = [['text','問題文',1],['choices','選択肢 a〜e',1],['mine','自分の回答',1],['key','正答',1],['ox','○×',1]];
+function csvPanelHtml(){
+  var ck = function(grp, x){ return '<label class="csvck"><input type="checkbox" data-csv="' + grp + ':' + x[0] + '"' + (x[2] ? ' checked' : '') + '> ' + x[1] + '</label>'; };
+  return '<div class="csvbox"><p class="h3" style="margin-top:0">自分の結果をCSVで保存</p>' +
+    '<p class="mut xs" style="margin:0 0 8px">AIに渡して復習するときなどに使えます。みんなの正答率などの統計は含みません。</p>' +
+    '<div class="csvlbl">含める問題</div><div class="csvgrid">' + CSV_ROWS.map(function(x){ return ck('row', x); }).join('') + '</div>' +
+    '<div class="csvlbl">含める項目 <span class="mut" style="font-weight:600">（問題番号は必ず入ります）</span></div><div class="csvgrid">' + CSV_COLS.map(function(x){ return ck('col', x); }).join('') + '</div>' +
+    '<button class="btn pri" id="btn-csv" style="margin-top:10px">CSVを保存</button>' +
+    (/github\.io$/.test(location.hostname) ? '' : '<p class="mut xs" style="margin:6px 0 0">保存できないときは、新しいURL（med-jikosai.github.io/jishu）で開いてお試しください。</p>') + '</div>';
+}
+function csvQuote(v){ v = String(v == null ? '' : v); return '"' + v.replace(/"/g, '""') + '"'; }
+function keyText(inf){
+  if (inf.mode) return inf.mode;
+  return inf.ans || '';
+}
+function buildCsv(rowSel, colSel, qtAll){
+  var head = ['問題番号'];
+  if (colSel.text) head.push('問題文');
+  if (colSel.choices) head = head.concat(['a', 'b', 'c', 'd', 'e']);
+  if (colSel.mine) head.push('自分の回答');
+  if (colSel.key) head.push('正答');
+  if (colSel.ox) head.push('○×');
+  var lines = [head.map(csvQuote).join(',')], n = 0;
+  BIDS.forEach(function(b){
+    var mine = parseBlockStr(R.answers[b], BN[b]), info = R.info[b] || [], qts = qtAll[b] || [];
+    for (var i = 0; i < BN[b]; i++) {
+      var ok = R.correct[b][i], my = mine[i] || '', cat = ok === null ? 'none' : !my ? 'blank' : ok ? 'right' : 'wrong';
+      if (!rowSel[cat]) continue;
+      var inf = info[i] || {}, qt = qts[i] || null, row = [b + (i + 1)];
+      if (colSel.text) row.push(qt && qt.s ? qt.s : '');
+      if (colSel.choices) for (var j = 0; j < 5; j++) row.push(qt && qt.c ? (qt.c[j] || '') : '');
+      if (colSel.mine) row.push(my.split('').join(','));
+      if (colSel.key) row.push(keyText(inf));
+      if (colSel.ox) row.push(cat === 'none' ? '採点対象外' : cat === 'right' ? '○' : cat === 'blank' ? '×（空欄）' : '×');
+      lines.push(row.map(csvQuote).join(',')); n++;
+    }
+  });
+  return { text: '﻿' + lines.join('\r\n') + '\r\n', n: n };
+}
+function loadAllQText(done){
+  var need = BIDS.filter(function(b){ return !Array.isArray(QT[b]) && (R.info[b] || []).some(function(x){ return x && x.h; }); });
+  if (!need.length) { done(); return; }
+  var left = need.length;
+  need.forEach(function(b){
+    QT[b] = 'loading';
+    call('apiQText', [b], function(r){ QT[b] = r || []; if (--left === 0) done(); }, function(){ QT[b] = 'err'; if (--left === 0) done(); });
+  });
+}
+function saveCsv(){
+  var rowSel = {}, colSel = {};
+  Array.prototype.forEach.call(document.querySelectorAll('[data-csv]'), function(c){ var p = c.getAttribute('data-csv').split(':'); (p[0] === 'row' ? rowSel : colSel)[p[1]] = c.checked; });
+  if (!Object.keys(rowSel).some(function(k){ return rowSel[k]; })) { toast('含める問題を1つ以上選んでください'); return; }
+  var go = function(){
+    loading(false);
+    var out = buildCsv(rowSel, colSel, (function(){ var o = {}; BIDS.forEach(function(b){ o[b] = Array.isArray(QT[b]) ? QT[b] : []; }); return o; })());
+    if (!out.n) { toast('当てはまる問題がありません'); return; }
+    var name = '統一試験_自己採点_結果.csv';
+    try {
+      var blob = new Blob([out.text], { type: 'text/csv;charset=utf-8' });
+      var url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 4000);
+      toast(out.n + '問をCSVで保存しました');
+    } catch(e){ toast('保存できませんでした。新しいURL（github.io）で開いてお試しください'); }
+  };
+  if (colSel.text || colSel.choices) { loading(true); loadAllQText(go); } else go();
+}
+document.addEventListener('click', function(e){ if (e.target && e.target.id === 'btn-csv') saveCsv(); });
 function renderScore(){
   var g = R.grade, M = R.means || {};
   var h = '<div class="hero"><div class="mut sm">総合（' + g + '年）</div><div class="s">' + R.score.total + '<small> / ' + R.max.total + '</small></div>' +
@@ -884,6 +918,7 @@ function renderScore(){
   h += '<p class="h3">成績分布（総合）</p><div id="d-body"></div>';
   var d = new Date(R.statsAt);
   h += '<p class="mut xs">平均・分布は「入力を終了した人」のデータです。定期的に更新されます（最終集計 ' + (d.getMonth()+1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2) + '）。</p>';
+  h += csvPanelHtml();
   $('res-score').innerHTML = h;
   renderDist();
 }
@@ -927,6 +962,61 @@ function qtextHtml(t, key){
   return h;
 }
 /** 1問分のカード（統計・ランキング共通）。head があれば番号の行の代わりに使う */
+// ---------- 問題検討依頼（コードは送らない） ----------
+var REQ_TYPES = ['正答が違う', '複数の正解がある', '正解がない', '問題文・選択肢の不備', 'その他'];
+var REQ_OPEN = {}, REQ_DRAFT = {}, REQ_SENT = {}, REQ_KEY = 'tk_req_sent';
+try { REQ_SENT = JSON.parse(localStorage.getItem(REQ_KEY) || '{}') || {}; } catch(e){ REQ_SENT = {}; }
+function reqHtml(b, i){
+  if (!R || R.grade !== '5') return '';
+  var qid = b + (i + 1);
+  if (REQ_SENT[qid]) return '<div class="reqdone">✓ この問題の検討依頼を送信しました</div>';
+  if (!R.reqOpen) return '';
+  if (!REQ_OPEN[qid]) return '<button class="reqbtn" data-req="' + qid + '">この問題の検討を依頼する</button>';
+  var d = REQ_DRAFT[qid] || (REQ_DRAFT[qid] = { t: '', c: '', r: '', f: '', n: '', ok: false });
+  var h = '<div class="reqform" data-qid="' + qid + '"><div class="reqttl">' + qid + ' の検討依頼</div>';
+  h += '<div class="reqnote"><b>必ず参考文献を含めてください</b>（教科書名・版・ページ、ガイドライン名と発行年、論文名など）。根拠のない依頼は検討の対象にならないことがあります。届いた内容は運営だけが見ます。</div>';
+  h += '<label class="reql">依頼の種類 <span class="req">必須</span></label><div class="reqtypes">' + REQ_TYPES.map(function(t){ return '<button type="button" class="reqt' + (d.t === t ? ' on' : '') + '" data-rt="' + t + '">' + t + '</button>'; }).join('') + '</div>';
+  var needC = d.t === '正答が違う' || d.t === '複数の正解がある';
+  h += '<label class="reql">正しいと考える選択肢 ' + (needC ? '<span class="req">必須</span>' : '<span class="opt">任意</span>') + '</label><div class="reqch">' + ['a','b','c','d','e'].map(function(c){ return '<button type="button" class="reqc' + (d.c.indexOf(c) >= 0 ? ' on' : '') + '" data-rc="' + c + '">' + c + '</button>'; }).join('') + '</div>';
+  h += '<label class="reql">理由・内容 <span class="req">必須</span><small>（20字以上）</small></label><textarea class="reqin" data-rf="r" rows="5" maxlength="1000" placeholder="どこがどう問題か、なぜその選択肢が正しいと考えるか">' + esc(d.r) + '</textarea>';
+  h += '<label class="reql">参考文献 <span class="req">必須</span></label><textarea class="reqin" data-rf="f" rows="3" maxlength="500" placeholder="例：〇〇内科学 第12版 p.345／〇〇診療ガイドライン2024">' + esc(d.f) + '</textarea>';
+  h += '<label class="reql">氏名 <span class="req">必須</span></label><input class="reqin" data-rf="n" maxlength="40" value="' + esc(d.n) + '" placeholder="例：日大 太郎">';
+  h += '<label class="reqok"><input type="checkbox" data-rf="ok"' + (d.ok ? ' checked' : '') + '> 参考文献を明記しました</label>';
+  h += '<div class="reqbtns"><button type="button" class="btn ghost sm2" data-reqcancel="' + qid + '">やめる</button><button type="button" class="btn pri reqsend" data-reqsend="' + qid + '">送信する</button></div>';
+  h += '<p class="mut xs" style="margin:6px 0 0">送信した内容に、あなたのユーザー識別コードや点数は含まれません。</p></div>';
+  return h;
+}
+function reqRerender(){ if (!$('res-stats').hidden) renderStats(); if (!$('res-rank').hidden) renderRank(); }
+function reqField(qid, el){
+  var d = REQ_DRAFT[qid]; if (!d) return;
+  var f = el.getAttribute('data-rf'); if (!f) return;
+  d[f] = f === 'ok' ? el.checked : el.value;
+}
+function onReqInput(e){ var form = e.target.closest('.reqform'); if (form) reqField(form.getAttribute('data-qid'), e.target); }
+function onReqClick(e){
+  var t = e.target.closest('[data-req],[data-rt],[data-rc],[data-reqcancel],[data-reqsend]'); if (!t) return false;
+  var form = t.closest('.reqform'), qid = form ? form.getAttribute('data-qid') : t.getAttribute('data-req');
+  if (t.hasAttribute('data-req')) { REQ_OPEN[qid] = true; reqRerender(); return true; }
+  var d = REQ_DRAFT[qid]; if (!d) return true;
+  if (t.hasAttribute('data-rt')) { d.t = t.getAttribute('data-rt'); reqRerender(); return true; }
+  if (t.hasAttribute('data-rc')) { var c = t.getAttribute('data-rc'); d.c = d.c.indexOf(c) >= 0 ? d.c.replace(c, '') : (d.c + c).split('').sort().join(''); reqRerender(); return true; }
+  if (t.hasAttribute('data-reqcancel')) { REQ_OPEN[qid] = false; reqRerender(); return true; }
+  // 送信
+  if (!d.t) { toast('依頼の種類を選んでください'); return true; }
+  if ((d.t === '正答が違う' || d.t === '複数の正解がある') && !d.c) { toast('正しいと考える選択肢を選んでください'); return true; }
+  if (d.r.trim().length < 20) { toast('理由・内容は20字以上で書いてください'); return true; }
+  if (d.f.trim().length < 5) { toast('参考文献を書いてください'); return true; }
+  if (!d.n.trim()) { toast('氏名を書いてください'); return true; }
+  if (!d.ok) { toast('「参考文献を明記しました」にチェックしてください'); return true; }
+  loading(true);
+  call('apiRequest', [{ g: R.grade, q: qid, t: d.t, c: d.c, r: d.r, f: d.f, n: d.n }], function(){
+    loading(false);
+    REQ_SENT[qid] = 1; try { localStorage.setItem(REQ_KEY, JSON.stringify(REQ_SENT)); } catch(e2){}
+    delete REQ_DRAFT[qid]; REQ_OPEN[qid] = false;
+    toast('検討依頼を送信しました'); reqRerender();
+  }, function(err){ loading(false); toast(errMsg(err)); });
+  return true;
+}
 function qcardHtml(b, i, grp, head){
   var c = R.stats[grp][b][i] || [0,0,0,0,0,0,0], n = c[0], inf = (R.info[b] || [])[i] || {};
   var ok = R.correct[b][i], my = parseBlockStr(R.answers[b], BN[b])[i] || '';
@@ -957,6 +1047,7 @@ function qcardHtml(b, i, grp, head){
     h += '<div class="bar' + cls + '"><span class="l">' + (ct ? '' : ch) + '</span><span class="t"><i style="width:' + p.toFixed(1) + '%"></i></span><span class="p">' + lab + '</span></div>';
   });
   if (!my) h += '<div class="xs mut" style="margin-top:4px">あなた：未回答</div>';
+  h += reqHtml(b, i);
   return h + '</div>';
 }
 function renderStats(){
@@ -976,7 +1067,8 @@ function renderStats(){
   if (!/qcard/.test(h)) h += '<p class="mut c">' + (fWrong ? '間違えた問題はありません 🎉' : 'データがありません') + '</p>';
   $('cards').innerHTML = h;
 }
-$('cards').addEventListener('click', function(e){ var t = e.target.closest('[data-more]'); if (!t) return; var k = t.getAttribute('data-more'); OPEN[k] = !OPEN[k]; renderStats(); });
+$('cards').addEventListener('input', onReqInput); $('cards').addEventListener('change', onReqInput);
+$('cards').addEventListener('click', function(e){ if (onReqClick(e)) return; var t = e.target.closest('[data-more]'); if (!t) return; var k = t.getAttribute('data-more'); OPEN[k] = !OPEN[k]; renderStats(); });
 // ---------- ランキング ----------
 var RK = { kind: 'hard', blk: 'all', grp: 'all' };
 var RKINDS = [
@@ -1038,7 +1130,8 @@ function renderRank(){
 $('rk-kind').addEventListener('click', function(e){ var t = e.target.closest('[data-rk]'); if (t) { RK.kind = t.getAttribute('data-rk'); renderRank(); } });
 $('rk-blk').addEventListener('click', function(e){ var t = e.target.closest('[data-rb]'); if (t) { RK.blk = t.getAttribute('data-rb'); renderRank(); } });
 $('rk-grp').addEventListener('click', function(e){ var t = e.target.closest('[data-rg]'); if (t) { RK.grp = t.getAttribute('data-rg'); renderRank(); } });
-$('rk-list').addEventListener('click', function(e){ var t = e.target.closest('[data-more]'); if (!t) return; var k = t.getAttribute('data-more'); OPEN[k] = !OPEN[k]; renderRank(); });
+$('rk-list').addEventListener('input', onReqInput); $('rk-list').addEventListener('change', onReqInput);
+$('rk-list').addEventListener('click', function(e){ if (onReqClick(e)) return; var t = e.target.closest('[data-more]'); if (!t) return; var k = t.getAttribute('data-more'); OPEN[k] = !OPEN[k]; renderRank(); });
 $('f-grp').addEventListener('click', function(e){ var t = e.target.closest('[data-g]'); if (t) { fGrp = t.getAttribute('data-g'); renderStats(); } });
 $('f-blk').addEventListener('click', function(e){ var t = e.target.closest('[data-bk]'); if (t) { fBlk = t.getAttribute('data-bk'); renderStats(); window.scrollTo(0,0); } });
 $('f-wrong').onclick = function(){ fWrong = !fWrong; renderStats(); };
