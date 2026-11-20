@@ -47,6 +47,10 @@ input{font:inherit}
 [hidden]{display:none!important}
 .scr{min-height:100vh;min-height:100dvh;padding:28px 22px calc(28px + env(safe-area-inset-bottom));max-width:480px;margin:0 auto;display:flex;flex-direction:column}
 .ttl{font-size:24px;font-weight:800;margin:0 0 6px;line-height:1.3}
+.closedbox{margin-top:28px;text-align:center;background:#f4f6f9;border:1.5px solid var(--bd);border-radius:16px;padding:30px 18px}
+.closedbox .ci{font-size:38px;line-height:1}
+.closedbox .ct{font-size:24px;font-weight:800;margin:12px 0 6px}
+.closedbox .cs{font-size:14px;color:var(--mut);margin:0;line-height:1.6}
 .lead{margin:0 0 4px}
 .mut{color:var(--mut)}
 .sm{font-size:13px}
@@ -296,6 +300,19 @@ textarea.reqin,input.reqin{width:100%;border:1.5px solid #c9d1da;border-radius:8
   <div class="foot">運営：日本大学医学部5年卒試委員会</div>
 </section>
 
+<section id="scr-closed" class="scr" hidden>
+  <h1 class="ttl">統一試験 自己採点</h1>
+  <div class="closedbox"><div class="ci">⏸</div><p class="ct">受付期間外です</p><p class="cs" id="closed-sub">受付が始まるまで、しばらくお待ちください。</p></div>
+  <div id="closed-res" hidden>
+    <p class="sm" style="margin:18px 0 2px">入力を終了した方は、スクショしたQRを読み取るか、<b>ユーザー識別コード</b>を入れると結果を見られます。</p>
+    <div class="row2" style="margin-top:8px">
+      <input id="codeinp2" class="inp" style="flex:2;font-size:17px;padding:10px 12px" maxlength="12" placeholder="例：K7Q2M9XA" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="ユーザー識別コード">
+      <button class="btn sec" id="btn-open2" style="flex:1;min-height:46px;padding:10px 8px;font-size:15px">開く</button>
+    </div>
+  </div>
+  <div class="foot">運営：日本大学医学部5年卒試委員会</div>
+</section>
+
 <!-- ①' QRの前の注意 -->
 <section id="scr-warn" class="scr" hidden style="padding-top:22px">
   <div class="warnicon"><svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"></path><line x1="12" y1="10" x2="12" y2="14"></line><line x1="12" y1="17.5" x2="12" y2="17.5"></line></svg></div>
@@ -421,7 +438,7 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(
 function fmtCode(c){ return c ? c.slice(0,4) + '-' + c.slice(4) : ''; }
 function myLink(){ return APP_URL + '?k=' + S.code + '&openExternalBrowser=1'; }
 function show(id){
-  ['scr-top','scr-warn','scr-save','scr-line','scr-input','scr-result'].forEach(function(x){ $(x).hidden = (x !== id); });
+  ['scr-top','scr-warn','scr-save','scr-line','scr-input','scr-result','scr-closed'].forEach(function(x){ $(x).hidden = (x !== id); });
   window.scrollTo(0,0);
 }
 var toastT;
@@ -472,8 +489,25 @@ function boot(){
     show('scr-line'); return;
   }
   if (code) openCode(code, (local && local.code === code) ? local.row : 0, !INIT_CODE);
-  else { show('scr-top'); try { google.script.run.withFailureHandler(function(){}).apiPing(); } catch(e){} }
+  else {
+    // 受付中かどうかを先に確かめてから画面を出す（4秒で返事がなければトップを出す）
+    loading(true);
+    var done = false, fin = function(r){
+      if (done) return; done = true; loading(false);
+      if (r && r.accepting === false) showClosed(!!r.published); else show('scr-top');
+    };
+    setTimeout(function(){ fin(null); }, 4000);
+    call('apiPing', [], fin, function(){ fin(null); });
+  }
 }
+function showClosed(published){
+  closeAll();
+  $('closed-sub').textContent = published ? '入力の受付は終了しました。' : '受付が始まるまで、しばらくお待ちください。';
+  $('closed-res').hidden = !published;
+  show('scr-closed');
+}
+function closeAll(){ try { clearTimeout(idleT); clearTimeout(retryT); } catch(e){} loading(false); }
+function isClosedErr(m){ return /受付期間外/.test(m); }
 function genCodeLocal(){
   var A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', s = '', r = new Uint32Array(8);
   try { crypto.getRandomValues(r); } catch(e){ for (var j=0;j<8;j++) r[j] = Math.floor(Math.random() * 4294967296); }
@@ -501,6 +535,7 @@ function openCode(code, row, fromLocal){
   }, function(e){
     loading(false);
     var m = errMsg(e);
+    if (isClosedErr(m)) { if (!$('scr-closed').hidden && !$('closed-res').hidden) toast('入力を終了していないため、結果は見られません'); showClosed(!!S.published); call('apiPing', [], function(r){ if (r && r.accepting === false) showClosed(!!r.published); }, function(){}); return; }
     if (quick && !(/見つかりません/.test(m) && local.row)) return; // 未登録ならこの後の自動保存で登録される
     if (fromLocal && /見つかりません/.test(m)) clearLocal();
     toast(m);
@@ -532,7 +567,7 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-grade]'), function
       S.row = st.row; S.published = st.published; S.openAt = st.openAt; S.needAll = !!st.needAll; S.offset = st.now - Date.now(); S.counts = st.counts; saveLocal(); renderCounts();
     }, function(e){
       var m = errMsg(e);
-      if (/受付期間外/.test(m)) { clearLocal(); toast(m); show('scr-top'); }
+      if (isClosedErr(m)) { clearLocal(); showClosed(false); }
     });
   };
 });
@@ -547,6 +582,12 @@ $('btn-open').onclick = function(){
   openCode(c, 0, false);
 };
 $('codeinp').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btn-open').click(); });
+$('btn-open2').onclick = function(){
+  var c = ($('codeinp2').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (c.length !== 8) { toast('コードは8文字です'); return; }
+  openCode(c, 0, false);
+};
+$('codeinp2').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btn-open2').click(); });
 
 // ---------- リンク保存 ----------
 var saveMode = 'start';
@@ -740,7 +781,8 @@ function syncNow(){
     inflight = false; again = false;
     setSync('ng');
     var m = errMsg(e);
-    if (/終了しています|受付期間外/.test(m)) toast(m);
+    if (isClosedErr(m)) { showClosed(S.published); return; }
+    if (/終了しています/.test(m)) toast(m);
     else if (manualSave) toast('保存できませんでした。電波のよい場所で自動で再送します');
     manualSave = false;
     // 混んでいるときに全員が同時に再送しないよう、待ち時間を少しずつ伸ばしてばらつかせる
@@ -823,7 +865,7 @@ function finalize(){
     applyServer(st);
     S.linkSaved = true; saveLocal();
     if (S.published) loadResult(); else showSave('done');
-  }, function(e){ loading(false); resetKnob(); toast(errMsg(e)); });
+  }, function(e){ loading(false); resetKnob(); var m = errMsg(e); if (isClosedErr(m)) showClosed(S.published); else toast(m); });
 }
 
 // ---------- 成績・統計 ----------
