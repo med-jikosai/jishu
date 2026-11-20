@@ -424,7 +424,7 @@ function call(fn, args, ok, ng){
 function buzz(){ try { if (navigator.vibrate) navigator.vibrate(8); } catch(e){} }
 
 // ---------- 状態 ----------
-var S = { code:'', row:0, grade:'', status:'', answers:{}, dirty:{}, linkSaved:false, published:false, openAt:null, offset:0 };
+var S = { code:'', row:0, grade:'', status:'', answers:{}, dirty:{}, linkSaved:false, published:false, openAt:null, needAll:false, offset:0 };
 function emptyAnswers(){ var a = {}; BLOCKS.forEach(function(b){ a[b[0]] = new Array(b[1]).fill(''); }); return a; }
 function parseBlockStr(str, n){ var arr = str ? String(str).split(',') : []; var out = []; for (var i=0;i<n;i++) out.push(/^[a-e]*$/.test(arr[i]||'') ? (arr[i]||'') : ''); return out; }
 function saveLocal(){
@@ -436,7 +436,7 @@ function clearLocal(){ try { localStorage.removeItem(LS_KEY); } catch(e){} }
 function applyServer(st){
   var local = loadLocal();
   S.code = st.code; S.row = st.row; S.grade = st.grade; S.status = st.status;
-  S.published = st.published; S.openAt = st.openAt; S.offset = st.now - Date.now(); if (st.counts) S.counts = st.counts;
+  S.published = st.published; S.openAt = st.openAt; S.needAll = !!st.needAll; S.offset = st.now - Date.now(); if (st.counts) S.counts = st.counts;
   S.answers = {}; S.dirty = {};
   BLOCKS.forEach(function(b){ S.answers[b[0]] = parseBlockStr(st.answers[b[0]], b[1]); });
   S.linkSaved = (INIT_CODE === st.code);
@@ -518,7 +518,7 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-grade]'), function
     saveLocal(); showWarn();
     call('apiStart', [grade, code], function(st){
       if (st.code !== S.code) return;
-      S.row = st.row; S.published = st.published; S.openAt = st.openAt; S.offset = st.now - Date.now(); S.counts = st.counts; saveLocal(); renderCounts();
+      S.row = st.row; S.published = st.published; S.openAt = st.openAt; S.needAll = !!st.needAll; S.offset = st.now - Date.now(); S.counts = st.counts; saveLocal(); renderCounts();
     }, function(e){
       var m = errMsg(e);
       if (/受付期間外/.test(m)) { clearLocal(); toast(m); show('scr-top'); }
@@ -757,7 +757,7 @@ function openEnd(){
   BIDS.forEach(function(id){ S.answers[id].forEach(function(v, i){ if (!v) miss.push([id, i]); }); });
   total = miss.length;
   if (total) {
-    var h = '<div class="warn">未入力が <b>' + total + '問</b> あります<div class="chips">';
+    var h = '<div class="warn">未入力が <b>' + total + '問</b> あります' + (S.needAll ? '<div style="margin-top:4px">全問を入力すると終了できます</div>' : '') + '<div class="chips">';
     if (total <= 30) {
       miss.forEach(function(m){ h += '<button class="chip" data-mb="' + m[0] + '" data-mi="' + m[1] + '">' + m[0] + (m[1]+1) + '</button>'; });
     } else {
@@ -772,8 +772,9 @@ function openEnd(){
     $('end-missing').innerHTML = '<div class="okbox">✓ 全400問 入力済み</div>';
   }
   var locked = S.openAt && (Date.now() + S.offset) < S.openAt;
-  $('slide').classList.toggle('dis', !!locked);
-  $('slidetxt').textContent = locked ? '2日目の試験後に押せます' : 'スライドして終了';
+  var needMore = S.needAll && total > 0;
+  $('slide').classList.toggle('dis', !!(locked || needMore));
+  $('slidetxt').textContent = locked ? '2日目の試験後に押せます' : needMore ? '全問入力すると押せます' : 'スライドして終了';
   $('end-note').textContent = locked ? '' : '';
   resetKnob();
 }
