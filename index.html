@@ -934,7 +934,7 @@ function loadAllQText(done){
   var left = need.length;
   need.forEach(function(b){
     QT[b] = 'loading';
-    call('apiQText', [b], function(r){ QT[b] = r || []; if (--left === 0) done(); }, function(){ QT[b] = 'err'; if (--left === 0) done(); });
+    call('apiQText', [b, S.code, S.row], function(r){ QT[b] = r || []; if (--left === 0) done(); }, function(){ QT[b] = 'err'; if (--left === 0) done(); });
   });
 }
 function saveCsv(){
@@ -1000,7 +1000,7 @@ var QT = {}, OPEN = {};
 function loadQText(blk){
   if (QT[blk]) return;
   QT[blk] = 'loading';
-  call('apiQText', [blk], function(r){ QT[blk] = r || []; reQText(blk); },
+  call('apiQText', [blk, S.code, S.row], function(r){ QT[blk] = r || []; reQText(blk); },
     function(){ QT[blk] = 'err'; reQText(blk); });
 }
 function reQText(blk){
