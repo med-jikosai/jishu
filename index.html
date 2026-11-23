@@ -148,7 +148,9 @@ a.qb{color:var(--pri);font-weight:700;text-decoration:underline;text-underline-o
 .shtog{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin:12px 2px 10px}
 .shtog input{width:20px;height:20px;margin:0}
 .shnote{font-size:13px;background:#fff7e6;border:1px solid #f0d9a8;border-radius:10px;padding:8px 10px;margin:0 0 10px;line-height:1.55}
-.btn-share{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 14px}
+.sharebar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(255,255,255,.96);border-top:1px solid var(--bd);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+.sharebar .btn{max-width:480px;margin:0 auto;min-height:50px;padding:12px}
+body.has-sharebar #scr-result{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .mbox{background:#fff;border-radius:18px;padding:22px;width:100%;max-width:340px}
 .qr{width:220px;height:220px;margin:8px auto}
 .qr svg{width:100%;height:100%;display:block}
@@ -447,6 +449,8 @@ textarea.reqin,input.reqin{width:100%;border:1.5px solid #c9d1da;border-radius:8
   <div class="foot">運営：日本大学医学部5年卒試委員会</div>
 </section>
 
+<div class="sharebar" id="sharebar" hidden><button class="btn pri" id="btn-sharecard">結果カードを画像で共有</button></div>
+
 <div class="modal" id="sharebox" hidden role="dialog" aria-modal="true" aria-label="結果カードの共有">
   <div class="mbox shb">
     <p class="h3" style="margin:0 0 10px;text-align:center">この画像を共有します</p>
@@ -544,8 +548,14 @@ var $ = function(id){ return document.getElementById(id); };
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function fmtCode(c){ return c ? c.slice(0,4) + '-' + c.slice(4) : ''; }
 function myLink(){ return APP_URL + '?k=' + S.code + '&openExternalBrowser=1'; }
+// 結果カードの共有ボタンは、成績タブを見ているときだけ画面の下に固定で出す
+function syncShareBar(){
+  var on = !$('scr-result').hidden && !$('res-score').hidden && !!(typeof R !== 'undefined' && R && R.score);
+  $('sharebar').hidden = !on; document.body.classList.toggle('has-sharebar', on);
+}
 function show(id){
   ['scr-top','scr-warn','scr-save','scr-line','scr-input','scr-result','scr-closed'].forEach(function(x){ $(x).hidden = (x !== id); });
+  syncShareBar();
   window.scrollTo(0,0);
 }
 var toastT;
@@ -998,6 +1008,7 @@ function setSeg(w){
   ['score','stats','rank'].forEach(function(k){ $('seg-' + k).classList.toggle('on', w === k); $('res-' + k).hidden = w !== k; });
   if (w === 'rank') renderRank();
   if (w === 'stats') renderStats();
+  syncShareBar();
   window.scrollTo(0,0);
 }
 $('seg-score').onclick = function(){ setSeg('score'); };
@@ -1202,7 +1213,6 @@ function renderScore(){
   var g = R.grade, M = R.means || {};
   var h = '<div class="hero"><div class="mut sm">総合（' + g + '年）</div><div class="s">' + R.score.total + '<small> / ' + R.max.total + '</small></div>' +
     '<div class="sm">' + pct(R.score.total, R.max.total) + '%</div></div>';
-  h += '<button class="btn sec btn-share" id="btn-sharecard">結果カードを画像で共有</button>';
   var rows = [['ippan','一般'],['rinsho','臨床'],['hissu','必修']].concat(BIDS.map(function(id){ return [id, id]; })).concat([['total','総合']]);
   h += '<table class="rt avg"><tr><th></th><th>あなた</th><th' + (g==='5'?' class="mine"':'') + '>5年平均</th><th' + (g==='6'?' class="mine"':'') + '>6年平均</th><th>全体平均</th></tr>';
   rows.forEach(function(r){
