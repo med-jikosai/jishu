@@ -67,6 +67,19 @@ input{font:inherit}
 .btn:disabled,.btn.dis{background:#e3e3e3;color:#9a9a9a;border-color:#e3e3e3}
 .row2{display:flex;gap:10px}.row2>*{flex:1}
 .lbl{font-size:13px;color:var(--mut);margin:0 0 8px;font-weight:600}
+.phase{margin:14px 0 0;background:#f4f7fb;border:1.5px solid #d6e2ef;border-radius:14px;padding:16px 14px;text-align:center}
+.ph-ic{width:46px;height:46px;border-radius:50%;background:#e8f3ea;color:#1e8e3e;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800}
+.ph-h{font-size:20px;font-weight:800;margin:0 0 4px;line-height:1.4}
+.ph-s{font-size:14px;margin:0;line-height:1.6}
+.ph-n{font-size:11.5px;color:var(--mut);margin:8px 0 0}
+.phase.intro .ph-ic{animation:phpop .5s ease-out both}
+.phase.intro .ph-h,.phase.intro .ph-s{animation:phup .6s .3s ease-out both}
+.intro-late{animation:phup .5s 1.1s ease-out both}
+@keyframes phpop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}
+@keyframes phup{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+.phbar{margin:6px 12px 0;font-size:12.5px;background:#f4f7fb;border:1px solid #d6e2ef;border-radius:10px;padding:7px 10px;line-height:1.5}
+.phbar b{font-weight:800}
+.phbar small{display:block;color:var(--mut);font-size:11px}
 .hr{border-top:1px solid var(--bd);margin:24px 0}
 .warnicon{width:72px;height:72px;margin:6px auto 0;border-radius:50%;background:#fdecea;color:var(--red);display:flex;align-items:center;justify-content:center}
 .warnlead{font-size:16px;line-height:1.7;text-align:center;margin:14px 0 14px}
@@ -279,13 +292,23 @@ textarea.reqin,input.reqin{width:100%;border:1.5px solid #c9d1da;border-radius:8
 <!-- ① トップ -->
 <section id="scr-top" class="scr" hidden>
   <h1 class="ttl">統一試験 自己採点</h1>
-  <p class="lead">回答を入れると、正答公開後に<br>点数と平均・分布がわかります。</p>
-  <p class="mut sm" style="margin:0">名前・学籍番号は不要です。</p>
+  <div class="phase" id="phase"><div class="ph-ic" aria-hidden="true">✓</div><p class="ph-h" id="ph-h">統一試験 自己採点</p><p class="ph-s" id="ph-s">回答を入れると、正答公開後に点数と平均・分布がわかります。</p><p class="ph-n" id="ph-n" hidden>※時間は目安です。日程は必ず各自で確認してください。</p></div>
+  <p class="mut sm" style="margin:8px 0 0;text-align:center">名前・学籍番号は不要です。</p>
   <div class="sp"></div>
+  <div id="gradebox">
   <p class="lbl">学年を選んでスタート</p>
   <div class="row2">
     <button class="btn pri" data-grade="5">5年</button>
     <button class="btn pri" data-grade="6">6年</button>
+  </div>
+  </div>
+  <div id="invbox" hidden>
+    <p class="lbl">合言葉を入れてスタート</p>
+    <p class="mut sm" style="margin:0 0 8px">配布されたリンクから開くと、入力しなくても始められます。</p>
+    <div class="row2">
+      <input id="invinp" class="inp" style="flex:2;font-size:17px;padding:10px 12px" maxlength="20" placeholder="合言葉" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="合言葉">
+      <button class="btn sec" id="btn-inv" style="flex:1;min-height:46px;padding:10px 8px;font-size:15px">OK</button>
+    </div>
   </div>
   <div class="sp"></div>
   <button class="lnk" id="btn-havecode">2回目以降の方（QRをスクショ済みの方）はこちら</button>
@@ -366,6 +389,7 @@ textarea.reqin,input.reqin{width:100%;border:1.5px solid #c9d1da;border-radius:8
     <span class="syncgrp"><span id="syncst" class="ok">✓ 保存済み</span><button class="savebtn" id="btn-savenow">今すぐ保存</button></span>
     <button class="codechip" id="btn-codechip" aria-label="ユーザー識別コード（タップでリンクをコピー）"><span class="cl">ユーザー識別コード</span><span id="codechip-v"></span></button>
   </div>
+  <div class="phbar" id="phbar" hidden></div>
   <div class="counts" id="counts" hidden></div>
   <div class="tabs" id="tabs"></div>
   <div id="qlist" role="list"></div>
@@ -432,6 +456,62 @@ var BIDS = BLOCKS.map(function(b){ return b[0]; });
 var LS_KEY = 'tk_jishu_v1';
 var APP_URL = location.origin + location.pathname;
 var INIT_CODE = (function(){ try { return (new URLSearchParams(location.search).get('k') || '').normalize('NFKC').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8); } catch(e){ return ''; } })();
+// 配布リンクの #k=合言葉 をこのスマホに覚える（以後は入力不要）
+var INV_KEY = 'tk_inv', INV = '', INV_FRESH = false, INV_ON = false;
+try { INV = localStorage.getItem(INV_KEY) || ''; } catch(e){}
+(function(){
+  var m = /(?:^#|&)k=([A-Za-z0-9-]{4,30})/.exec(location.hash || '');
+  if (!m) return;
+  var v = m[1].toUpperCase().replace(/[^A-Z0-9]/g, '');
+  var seen = ''; try { seen = localStorage.getItem('tk_intro') || ''; } catch(e){}
+  INV_FRESH = !seen || v !== INV;
+  INV = v;
+  try { localStorage.setItem(INV_KEY, v); } catch(e){}
+  try { history.replaceState(null, '', location.pathname + location.search); } catch(e){}
+})();
+function setInv(v){ INV = v; try { if (v) localStorage.setItem(INV_KEY, v); else localStorage.removeItem(INV_KEY); } catch(e){} }
+
+// ---------- 時刻に合わせた表示（時間は目安） ----------
+var SCHED = [['A','2026-12-02T09:30:00+09:00'],['B','2026-12-02T13:20:00+09:00'],['C','2026-12-02T15:25:00+09:00'],['D','2026-12-03T09:30:00+09:00'],['E','2026-12-03T13:20:00+09:00'],['F','2026-12-03T15:25:00+09:00']];
+var SCHED_T = SCHED.map(function(x){ return Date.parse(x[1]); });
+function nowMs(){ return Date.now() + (S.offset || 0); }
+function jst(t){ return new Date(t + 9 * 3600e3); }
+function hm(t){ var j = jst(t); return j.getUTCHours() + ':' + ('0' + j.getUTCMinutes()).slice(-2); }
+function md(t){ var j = jst(t); return (j.getUTCMonth() + 1) + '/' + j.getUTCDate(); }
+function blockStart(id){ for (var i = 0; i < SCHED.length; i++) if (SCHED[i][0] === id) return SCHED_T[i]; return 0; }
+function phaseInfo(){
+  var n = nowMs(), T = SCHED_T;
+  if (S.published) return { h: '結果が出ています', s: '入力を終了した人は、QR（同じリンク）から結果を見られます。', note: false };
+  if (n < T[0]) {
+    var d = T[0] - n, hh = Math.floor(d / 3600e3), mm = Math.floor(d % 3600e3 / 60e3), dd = Math.floor(hh / 24);
+    var left = dd >= 1 ? dd + '日' + (hh % 24) + '時間' : hh + '時間' + mm + '分';
+    return { h: INV_FRESH ? '準備OK！ いよいよ統一試験' : 'いよいよ統一試験', s: 'A問題まで あと' + left + '（' + md(T[0]) + ' ' + hm(T[0]) + '〜の予定）。試験が終わったら、また開いてね。', note: true };
+  }
+  var i = 0; while (i + 1 < T.length && n >= T[i + 1]) i++;
+  if (i === 2) return { h: '1日目おつかれさまでした！', s: 'A・B・Cを入力しよう。明日はD問題（' + md(T[3]) + ' ' + hm(T[3]) + '〜の予定）。', note: true };
+  if (i === 5) return { h: '統一試験おつかれさまでした！', s: '全ブロック入力して「入力を終了」しよう。正答公開の10分後に結果が出ます。', note: true };
+  var b = SCHED[i][0], nx = SCHED[i + 1][0];
+  return { h: b + '問題おつかれさま！', s: b + 'の回答を入れておこう。次は' + nx + '問題（' + hm(T[i + 1]) + '〜の予定）。', note: true };
+}
+function renderPhase(){
+  var p = phaseInfo();
+  $('ph-h').textContent = p.h; $('ph-s').textContent = p.s; $('ph-n').hidden = !p.note;
+  var bar = $('phbar');
+  if (bar) { bar.innerHTML = '<b>' + esc(p.h) + '</b> ' + esc(p.s) + (p.note ? '<small>※時間は目安です。日程は必ず各自で確認してください。</small>' : ''); bar.hidden = S.status === 'final'; }
+}
+setInterval(function(){ if (!$('scr-top').hidden || !$('scr-input').hidden) { renderPhase(); if (!$('scr-input').hidden && !endTab) renderTabs(); } }, 30000);
+function showTop(r){
+  if (r) { if (r.now) S.offset = r.now - Date.now(); S.published = !!r.published; INV_ON = !!r.invOn; }
+  var needInv = INV_ON && !INV;
+  $('invbox').hidden = !needInv; $('gradebox').hidden = needInv;
+  renderPhase();
+  show('scr-top');
+  if (INV_FRESH) {
+    $('phase').classList.add('intro'); $('gradebox').classList.add('intro-late');
+    try { localStorage.setItem('tk_intro', '1'); } catch(e){}
+    INV_FRESH = false;
+  }
+}
 
 var $ = function(id){ return document.getElementById(id); };
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -494,7 +574,7 @@ function boot(){
     loading(true);
     var done = false, fin = function(r){
       if (done) return; done = true; loading(false);
-      if (r && r.accepting === false) showClosed(!!r.published); else show('scr-top');
+      if (r && r.accepting === false) showClosed(!!r.published); else showTop(r);
     };
     setTimeout(function(){ fin(null); }, 4000);
     call('apiPing', [], fin, function(){ fin(null); });
@@ -539,7 +619,7 @@ function openCode(code, row, fromLocal){
     if (quick && !(/見つかりません/.test(m) && local.row)) return; // 未登録ならこの後の自動保存で登録される
     if (fromLocal && /見つかりません/.test(m)) clearLocal();
     toast(m);
-    show('scr-top');
+    showTop(null);
   });
 }
 function route(){
@@ -562,19 +642,26 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-grade]'), function
     S.code = code; S.row = 0; S.grade = grade; S.status = 'draft';
     S.answers = emptyAnswers(); S.dirty = {}; S.linkSaved = false;
     saveLocal(); showWarn();
-    call('apiStart', [grade, code], function(st){
+    call('apiStart', [grade, code, INV], function(st){
       if (st.code !== S.code) return;
       S.row = st.row; S.published = st.published; S.openAt = st.openAt; S.needAll = !!st.needAll; S.offset = st.now - Date.now(); S.counts = st.counts; saveLocal(); renderCounts();
     }, function(e){
       var m = errMsg(e);
       if (isClosedErr(m)) { clearLocal(); showClosed(false); }
+      else if (/合言葉/.test(m)) { clearLocal(); S.code = ''; setInv(''); INV_ON = true; showTop(null); toast('合言葉が違います。配布されたリンクから開くか、合言葉を入れてください'); }
     });
   };
 });
 function showWarn(){ $('warn-grade').textContent = S.grade + '年'; $('warn-ok').checked = false; $('btn-warn-next').disabled = true; show('scr-warn'); }
 $('warn-ok').onchange = function(){ $('btn-warn-next').disabled = !this.checked; };
 $('btn-warn-next').onclick = function(){ if ($('warn-ok').checked) showSave('start'); };
-$('btn-warn-back').onclick = function(){ clearLocal(); S.code = ''; show('scr-top'); };
+$('btn-warn-back').onclick = function(){ clearLocal(); S.code = ''; showTop(null); };
+$('btn-inv').onclick = function(){
+  var v = ($('invinp').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (v.length < 4) { toast('合言葉を入れてください'); return; }
+  setInv(v); $('invbox').hidden = true; $('gradebox').hidden = false; toast('学年を選んでスタートしてください');
+};
+$('invinp').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btn-inv').click(); });
 $('btn-havecode').onclick = function(){ $('codebox').hidden = !$('codebox').hidden; if (!$('codebox').hidden) $('codeinp').focus(); };
 $('btn-open').onclick = function(){
   var c = ($('codeinp').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -640,6 +727,7 @@ function renderCounts(){
 }
 function showInput(){
   $('codechip-v').textContent = fmtCode(S.code) + ' ⧉';
+  renderPhase();
   var first = BIDS.filter(function(id){ return filled(id) < BN[id]; })[0] || 'A';
   if (!S.answers[cur.b] || (cur.b === 'A' && cur.i === 0)) { cur.b = first; cur.i = Math.max(0, S.answers[first].indexOf('')); }
   show('scr-input');
@@ -657,8 +745,9 @@ function refreshCounts(){
 function renderTabs(){
   var h = '';
   BIDS.forEach(function(id){
-    var f = filled(id), n = BN[id];
-    h += '<button class="tab' + (f === n ? ' done' : '') + (!endTab && cur.b === id ? ' on' : '') + '" data-b="' + id + '">' + id + '<small>' + f + '/' + n + '</small></button>';
+    var f = filled(id), n = BN[id], st = blockStart(id);
+    var sub = (f === 0 && st && nowMs() < st) ? md(st) + '〜' : f + '/' + n;
+    h += '<button class="tab' + (f === n ? ' done' : '') + (!endTab && cur.b === id ? ' on' : '') + '" data-b="' + id + '">' + id + '<small>' + sub + '</small></button>';
   });
   h += '<button class="tab end' + (endTab ? ' on' : '') + '" data-b="END">終了</button>';
   $('tabs').innerHTML = h;
@@ -766,7 +855,7 @@ function syncNow(){
   inflight = true; changes = 0; setSync('ing');
   var payload = {}, sent = {};
   ids.forEach(function(id){ payload[id] = S.answers[id].join(','); sent[id] = payload[id]; });
-  call('apiSave', [S.code, S.row, payload, S.grade], function(r){
+  call('apiSave', [S.code, S.row, payload, S.grade, INV], function(r){
     inflight = false;
     if (r && r.row) S.row = r.row;
     if (r && r.counts) { S.counts = r.counts; renderCounts(); }
@@ -860,7 +949,7 @@ $('knob').addEventListener('pointercancel', endDrag);
 function finalize(){
   loading(true);
   var payload = {}; BIDS.forEach(function(id){ payload[id] = S.answers[id].join(','); });
-  call('apiFinalize', [S.code, S.row, payload, S.grade], function(st){
+  call('apiFinalize', [S.code, S.row, payload, S.grade, INV], function(st){
     loading(false);
     applyServer(st);
     S.linkSaved = true; saveLocal();
@@ -1063,7 +1152,7 @@ function onReqClick(e){
   if (!d.n.trim()) { toast('氏名を書いてください'); return true; }
   if (!d.ok) { toast('「参考文献を明記しました」にチェックしてください'); return true; }
   loading(true);
-  call('apiRequest', [{ g: R.grade, q: qid, t: d.t, c: d.c, r: d.r, f: d.f, n: d.n }], function(){
+  call('apiRequest', [{ g: R.grade, q: qid, t: d.t, c: d.c, r: d.r, f: d.f, n: d.n, k: INV }], function(){
     loading(false);
     REQ_SENT[qid] = 1; try { localStorage.setItem(REQ_KEY, JSON.stringify(REQ_SENT)); } catch(e2){}
     delete REQ_DRAFT[qid]; REQ_OPEN[qid] = false;
