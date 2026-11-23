@@ -79,6 +79,8 @@ input{font:inherit}
 @keyframes phup{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
 .phbar{margin:6px 12px 0;font-size:12.5px;background:#f4f7fb;border:1px solid #d6e2ef;border-radius:10px;padding:7px 10px;line-height:1.5}
 .phbar b{font-weight:800}
+.reswhen{margin:0 0 10px;text-align:center;font-size:15px;font-weight:800;color:var(--pri);background:var(--pri-l);border-radius:10px;padding:10px 12px;line-height:1.5}
+.reswhen:empty{display:none}
 .phbar small{display:block;color:var(--mut);font-size:11px}
 .hr{border-top:1px solid var(--bd);margin:24px 0}
 .warnicon{width:72px;height:72px;margin:6px auto 0;border-radius:50%;background:#fdecea;color:var(--red);display:flex;align-items:center;justify-content:center}
@@ -140,6 +142,13 @@ a.qb{color:var(--pri);font-weight:700;text-decoration:underline;text-underline-o
 
 /* モーダル */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:40;padding:20px}
+.shb{max-width:400px;max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow:auto;padding:16px}
+.shimg{background:#eef1f4;border-radius:12px;padding:10px;text-align:center}
+.shimg img{display:block;margin:0 auto;width:100%;max-width:300px;height:auto;aspect-ratio:4/5;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.15);background:#fff}
+.shtog{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin:12px 2px 10px}
+.shtog input{width:20px;height:20px;margin:0}
+.shnote{font-size:13px;background:#fff7e6;border:1px solid #f0d9a8;border-radius:10px;padding:8px 10px;margin:0 0 10px;line-height:1.55}
+.btn-share{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 14px}
 .mbox{background:#fff;border-radius:18px;padding:22px;width:100%;max-width:340px}
 .qr{width:220px;height:220px;margin:8px auto}
 .qr svg{width:100%;height:100%;display:block}
@@ -366,7 +375,8 @@ textarea.reqin,input.reqin{width:100%;border:1.5px solid #c9d1da;border-radius:8
   <div class="shotcall"><svg aria-hidden="true" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>この画面をスクショ</div>
   <div id="save-start2" class="c"><button class="btn ghost sm2" id="btn-begin">スクショしたら、解答入力へ →</button></div>
   <div id="save-done2" hidden>
-    <p class="c sm" style="margin:0 0 10px">正答が出たら、このQRから点数が見られます</p>
+    <p class="reswhen" id="res-when"></p>
+    <p class="c sm" style="margin:0 0 10px">結果が出たら、このQRから点数が見られます</p>
     <button class="btn pri" id="btn-toresult" hidden>成績を見る</button>
   </div>
   <div class="foot">運営：日本大学医学部5年卒試委員会</div>
@@ -437,6 +447,18 @@ textarea.reqin,input.reqin{width:100%;border:1.5px solid #c9d1da;border-radius:8
   <div class="foot">運営：日本大学医学部5年卒試委員会</div>
 </section>
 
+<div class="modal" id="sharebox" hidden role="dialog" aria-modal="true" aria-label="結果カードの共有">
+  <div class="mbox shb">
+    <p class="h3" style="margin:0 0 10px;text-align:center">この画像を共有します</p>
+    <div class="shimg"><img id="sh-img" alt="結果カードのプレビュー"></div>
+    <label class="shtog"><input type="checkbox" id="sh-hide"> 点数を隠す（得点率だけ出す）</label>
+    <p class="shnote" id="sh-note" hidden></p>
+    <button class="btn pri" id="sh-share">共有する（LINEなど）</button>
+    <button class="btn sec" id="sh-save" style="margin-top:8px">画像を保存</button>
+    <button class="btn" id="sh-close" style="margin-top:4px;color:var(--mut);font-size:15px;min-height:44px">閉じる</button>
+  </div>
+</div>
+
 <div id="loading" hidden><div class="spin"></div></div>
 <div id="toast" role="status"></div>
 
@@ -479,6 +501,10 @@ function jst(t){ return new Date(t + 9 * 3600e3); }
 function hm(t){ var j = jst(t); return j.getUTCHours() + ':' + ('0' + j.getUTCMinutes()).slice(-2); }
 function md(t){ var j = jst(t); return (j.getUTCMonth() + 1) + '/' + j.getUTCDate(); }
 function blockStart(id){ for (var i = 0; i < SCHED.length; i++) if (SCHED[i][0] === id) return SCHED_T[i]; return 0; }
+function resText(){
+  if (S.resAt) return '結果公開は ' + md(S.resAt) + ' ' + hm(S.resAt) + ' の予定です';
+  return '結果は、大学からの正答公開の10分後に公開予定です';
+}
 function phaseInfo(){
   var n = nowMs(), T = SCHED_T;
   if (S.published) return { h: '結果が出ています', s: '入力を終了した人は、QR（同じリンク）から結果を見られます。', note: false };
@@ -489,7 +515,8 @@ function phaseInfo(){
   }
   var i = 0; while (i + 1 < T.length && n >= T[i + 1]) i++;
   if (i === 2) return { h: '1日目おつかれさまでした！', s: 'A・B・Cを入力しよう。明日はD問題（' + md(T[3]) + ' ' + hm(T[3]) + '〜の予定）。', note: true };
-  if (i === 5) return { h: '統一試験おつかれさまでした！', s: '全ブロック入力して「入力を終了」しよう。正答公開の10分後に結果が出ます。', note: true };
+  if (S.status === 'final') return { h: '入力おつかれさまでした！', s: resText() + '。', note: true };
+  if (i === 5) return { h: '統一試験おつかれさまでした！', s: '全ブロック入力して「入力を終了」しよう。' + resText() + '。', note: true };
   var b = SCHED[i][0], nx = SCHED[i + 1][0];
   return { h: b + '問題おつかれさま！', s: b + 'の回答を入れておこう。次は' + nx + '問題（' + hm(T[i + 1]) + '〜の予定）。', note: true };
 }
@@ -501,7 +528,7 @@ function renderPhase(){
 }
 setInterval(function(){ if (!$('scr-top').hidden || !$('scr-input').hidden) { renderPhase(); if (!$('scr-input').hidden && !endTab) renderTabs(); } }, 30000);
 function showTop(r){
-  if (r) { if (r.now) S.offset = r.now - Date.now(); S.published = !!r.published; INV_ON = !!r.invOn; }
+  if (r) { if (r.now) S.offset = r.now - Date.now(); S.published = !!r.published; S.resAt = r.resAt || null; INV_ON = !!r.invOn; }
   var needInv = INV_ON && !INV;
   $('invbox').hidden = !needInv; $('gradebox').hidden = needInv;
   renderPhase();
@@ -532,7 +559,7 @@ function call(fn, args, ok, ng){
 function buzz(){ try { if (navigator.vibrate) navigator.vibrate(8); } catch(e){} }
 
 // ---------- 状態 ----------
-var S = { code:'', row:0, grade:'', status:'', answers:{}, dirty:{}, linkSaved:false, published:false, openAt:null, needAll:false, offset:0 };
+var S = { code:'', row:0, grade:'', status:'', answers:{}, dirty:{}, linkSaved:false, published:false, openAt:null, resAt:null, needAll:false, offset:0 };
 function emptyAnswers(){ var a = {}; BLOCKS.forEach(function(b){ a[b[0]] = new Array(b[1]).fill(''); }); return a; }
 function parseBlockStr(str, n){ var arr = str ? String(str).split(',') : []; var out = []; for (var i=0;i<n;i++) out.push(/^[a-e]*$/.test(arr[i]||'') ? (arr[i]||'') : ''); return out; }
 function saveLocal(){
@@ -544,7 +571,7 @@ function clearLocal(){ try { localStorage.removeItem(LS_KEY); } catch(e){} }
 function applyServer(st){
   var local = loadLocal();
   S.code = st.code; S.row = st.row; S.grade = st.grade; S.status = st.status;
-  S.published = st.published; S.openAt = st.openAt; S.needAll = !!st.needAll; S.offset = st.now - Date.now(); if (st.counts) S.counts = st.counts;
+  S.published = st.published; S.openAt = st.openAt; S.resAt = st.resAt || null; S.needAll = !!st.needAll; S.offset = st.now - Date.now(); if (st.counts) S.counts = st.counts;
   S.answers = {}; S.dirty = {};
   BLOCKS.forEach(function(b){ S.answers[b[0]] = parseBlockStr(st.answers[b[0]], b[1]); });
   S.linkSaved = (INIT_CODE === st.code);
@@ -644,7 +671,7 @@ Array.prototype.forEach.call(document.querySelectorAll('[data-grade]'), function
     saveLocal(); showWarn();
     call('apiStart', [grade, code, INV], function(st){
       if (st.code !== S.code) return;
-      S.row = st.row; S.published = st.published; S.openAt = st.openAt; S.needAll = !!st.needAll; S.offset = st.now - Date.now(); S.counts = st.counts; saveLocal(); renderCounts();
+      S.row = st.row; S.published = st.published; S.openAt = st.openAt; S.resAt = st.resAt || null; S.needAll = !!st.needAll; S.offset = st.now - Date.now(); S.counts = st.counts; saveLocal(); renderCounts();
     }, function(e){
       var m = errMsg(e);
       if (isClosedErr(m)) { clearLocal(); showClosed(false); }
@@ -685,6 +712,7 @@ function showSave(mode){
   $('save-start2').hidden = !start;
   $('save-done').hidden = start; $('save-done2').hidden = start;
   $('btn-toresult').hidden = !(S.published && S.status === 'final');
+  $('res-when').textContent = (!start && !S.published) ? resText() : '';
   var text = '統一試験 自己採点（自分用リンク）\nコード：' + fmtCode(S.code) + '\n' + myLink();
   Array.prototype.forEach.call(document.querySelectorAll('.js-line'), function(a){
     a.href = 'https://line.me/R/share?text=' + encodeURIComponent(text);
@@ -1046,10 +1074,135 @@ function saveCsv(){
   if (colSel.text || colSel.choices) { loading(true); loadAllQText(go); } else go();
 }
 document.addEventListener('click', function(e){ if (e.target && e.target.id === 'btn-csv') saveCsv(); });
+// ---------- 結果カード（画像）を作って共有する ----------
+// 画面を撮るのではなく、決まった大きさのキャンバスに座標で描くので、どのスマホでも同じ画像になる
+var CARD_FONT = '"Noto Sans JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif';
+var CARD_CHARS = '統一試験自己採点得点率総合必修一般臨床日本大学医学部年卒委員会ABCDEF0123456789/%.—・ ';
+var cardFontP = null, shareBlob = null, shareUrl = '';
+function loadCardFont(){
+  if (cardFontP) return cardFontP;
+  cardFontP = new Promise(function(res){
+    var done = false, fin = function(){ if (!done) { done = true; res(); } };
+    setTimeout(fin, 3500);
+    try {
+      var l = document.createElement('link'); l.rel = 'stylesheet';
+      l.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@500;800&display=block&text=' + encodeURIComponent(CARD_CHARS);
+      l.onload = function(){
+        if (!document.fonts || !document.fonts.load) return fin();
+        Promise.all([document.fonts.load('800 100px "Noto Sans JP"', CARD_CHARS), document.fonts.load('500 40px "Noto Sans JP"', CARD_CHARS)]).then(fin, fin);
+      };
+      l.onerror = fin;
+      document.head.appendChild(l);
+    } catch(e){ fin(); }
+  });
+  return cardFontP;
+}
+function drawCard(hide){
+  var W = 1080, H = 1350, P = 90, c = document.createElement('canvas'); c.width = W; c.height = H;
+  var x = c.getContext('2d');
+  var INK = '#1d1d1f', MUT = '#6b7480', PRI = '#2f5d8a', PL = '#eaf0f6';
+  var F = function(w, sz){ return w + ' ' + sz + 'px ' + CARD_FONT; };
+  // 幅に収まらなければ文字を小さくする（フォントが違っても、はみ出さない）
+  var fit = function(t, w, sz, maxW){ x.font = F(w, sz); while (sz > 12 && x.measureText(t).width > maxW) { sz -= 2; x.font = F(w, sz); } return x.measureText(t).width; };
+  var txt = function(t, X, Y, w, sz, col, align, maxW){ x.fillStyle = col; x.textAlign = align || 'left'; fit(t, w, sz, maxW || W - 2 * P); x.fillText(t, X, Y); };
+  var rr = function(X, Y, w, h, r, col){ r = Math.min(r, h / 2, w / 2); x.fillStyle = col; x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); x.fill(); };
+  var S = R.score || {}, M = R.max || {}, pc = function(m){ var v = pct(S[m] || 0, M[m] || 0); return v === '—' ? '—' : v + '%'; };
+  var rate = function(m){ return M[m] ? Math.max(0, Math.min(1, (S[m] || 0) / M[m])) : 0; };
+  x.textBaseline = 'alphabetic';
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+  x.fillStyle = PRI; x.fillRect(0, 0, W, 14);
+  txt('統一試験 2026 自己採点', P, 150, 500, 40, MUT);
+  // 総合
+  if (hide) {
+    txt(pc('total'), P, 400, 800, 220, INK);
+    txt('総合 得点率', P, 470, 500, 40, PRI);
+  } else {
+    var big = String(S.total || 0), sm = '/ ' + (M.total || 0);
+    x.font = F(800, 220); var w1 = x.measureText(big).width;
+    x.font = F(500, 64); var w2 = x.measureText(sm).width;
+    var k = Math.min(1, (W - 2 * P) / (w1 + 24 + w2));
+    x.fillStyle = INK; x.textAlign = 'left'; x.font = F(800, Math.floor(220 * k)); x.fillText(big, P, 400);
+    x.fillStyle = MUT; x.font = F(500, Math.floor(64 * k)); x.fillText(sm, P + (w1 + 24) * k, 400);
+    txt('得点率 ' + pc('total'), P, 470, 500, 40, PRI);
+  }
+  // 必修・一般・臨床
+  var cats = [['hissu','必修'],['ippan','一般'],['rinsho','臨床']], gap = 24, tw = (W - 2 * P - gap * 2) / 3, ty = 530, th = 190;
+  cats.forEach(function(cv, i){
+    var X = P + i * (tw + gap), cx = X + tw / 2;
+    rr(X, ty, tw, th, 22, PL);
+    txt(cv[1], cx, ty + 56, 500, 34, PRI, 'center', tw - 30);
+    txt(pc(cv[0]), cx, ty + 128, 800, 62, INK, 'center', tw - 30);
+    if (!hide) txt((S[cv[0]] || 0) + ' / ' + (M[cv[0]] || 0), cx, ty + 168, 500, 28, MUT, 'center', tw - 30);
+  });
+  // ブロック別
+  var by = 810, step = 78, bx = P + 72, bw = W - P - 210 - bx;
+  BIDS.forEach(function(id, i){
+    var cy = by + i * step;
+    txt(id, P, cy + 14, 800, 40, INK, 'left', 60);
+    rr(bx, cy - 10, bw, 20, 10, PL);
+    var r = rate(id); if (r > 0) rr(bx, cy - 10, Math.max(20, bw * r), 20, 10, PRI);
+    txt(hide ? pc(id) : (S[id] || 0) + ' / ' + (M[id] || 0), W - P, cy + 13, 500, 38, INK, 'right', 190);
+  });
+  txt('日本大学医学部5年卒試委員会', P, 1290, 500, 30, MUT);
+  return c;
+}
+function renderShareCard(){
+  var hide = $('sh-hide').checked;
+  var c = drawCard(hide);
+  c.toBlob(function(b){
+    if (!b) { toast('画像を作れませんでした'); return; }
+    shareBlob = b;
+    if (shareUrl) { try { URL.revokeObjectURL(shareUrl); } catch(e){} }
+    shareUrl = URL.createObjectURL(b);
+    $('sh-img').src = shareUrl;
+  }, 'image/png');
+}
+function isLineApp(){ return /\bLine\//i.test(navigator.userAgent || ''); }
+function shareNote(msg){ var n = $('sh-note'); n.textContent = msg; n.hidden = !msg; }
+function openShare(){
+  if (!R || !R.score) return;
+  loading(true);
+  loadCardFont().then(function(){
+    loading(false);
+    shareNote(isLineApp() ? 'LINEの中で開いているため、「共有する」が使えないことがあります。そのときは画像を長押しして保存し、LINEで送ってください。' : '');
+    renderShareCard();
+    $('sharebox').hidden = false;
+  });
+}
+function closeShare(){ $('sharebox').hidden = true; }
+function cardFile(){ return new File([shareBlob], 'jikosai_result.png', { type: 'image/png' }); }
+function saveCard(){
+  if (!shareBlob) return;
+  try {
+    var a = document.createElement('a'); a.href = shareUrl; a.download = 'jikosai_result.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    if (isLineApp()) shareNote('保存できないときは、上の画像を長押しして「保存」を選んでください。');
+  } catch(e){ shareNote('上の画像を長押しして保存してください。'); }
+}
+function shareCard(){
+  if (!shareBlob) return;
+  var f;
+  try { f = cardFile(); } catch(e){ f = null; }
+  if (f && navigator.canShare && navigator.canShare({ files: [f] }) && navigator.share) {
+    navigator.share({ files: [f] }).catch(function(err){
+      if (err && err.name === 'AbortError') return;
+      shareNote('共有できませんでした。「画像を保存」か、画像の長押しで保存してからLINEで送ってください。');
+    });
+  } else {
+    shareNote('この画面からは直接共有できません。「画像を保存」か、上の画像を長押しして保存してから、LINEで送ってください。');
+  }
+}
+$('sh-hide').addEventListener('change', renderShareCard);
+$('sh-share').onclick = shareCard;
+$('sh-save').onclick = saveCard;
+$('sh-close').onclick = closeShare;
+$('sharebox').addEventListener('click', function(e){ if (e.target === $('sharebox')) closeShare(); });
+document.addEventListener('click', function(e){ if (e.target && e.target.id === 'btn-sharecard') openShare(); });
 function renderScore(){
   var g = R.grade, M = R.means || {};
   var h = '<div class="hero"><div class="mut sm">総合（' + g + '年）</div><div class="s">' + R.score.total + '<small> / ' + R.max.total + '</small></div>' +
     '<div class="sm">' + pct(R.score.total, R.max.total) + '%</div></div>';
+  h += '<button class="btn sec btn-share" id="btn-sharecard">結果カードを画像で共有</button>';
   var rows = [['ippan','一般'],['rinsho','臨床'],['hissu','必修']].concat(BIDS.map(function(id){ return [id, id]; })).concat([['total','総合']]);
   h += '<table class="rt avg"><tr><th></th><th>あなた</th><th' + (g==='5'?' class="mine"':'') + '>5年平均</th><th' + (g==='6'?' class="mine"':'') + '>6年平均</th><th>全体平均</th></tr>';
   rows.forEach(function(r){
